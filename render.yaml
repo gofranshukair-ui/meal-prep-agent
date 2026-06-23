@@ -12,4 +12,4 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL_NAME
-        value: gemini-2.5-flash-lite
+        value: models/gemini-2.5-flash-lite

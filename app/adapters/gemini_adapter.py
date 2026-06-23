@@ -4,7 +4,7 @@ import time
 from typing import Any
 
 from google.genai import Client
-from google.genai.errors import ServerError
+from google.genai.errors import ClientError, ServerError
 from google.genai.types import GenerateContentResponse
 
 from app.config import settings
@@ -123,7 +123,12 @@ class GeminiAI(AIClient):
                 break
             except ServerError as exc:
                 first_error = exc
-                if exc.status_code == 503:
+                if exc.code in {429, 500, 503, 504}:
+                    continue
+                break
+            except ClientError as exc:
+                first_error = exc
+                if exc.code in {404, 429}:
                     continue
                 break
             except Exception as exc:
@@ -131,10 +136,10 @@ class GeminiAI(AIClient):
                 break
 
         if response is None:
+            tried = ", ".join(model_names)
             raise RuntimeError(
-                f"Failed to generate text with model '{self.model_name}'. "
-                "Ensure the model name is available for your Gemini/GenAI API key "
-                "and that the package supports the selected generation API. "
+                f"Failed to generate text. Tried: {tried}. "
+                "Ensure GEMINI_MODEL_NAME is available for your API key. "
                 "Use list_models() or update GEMINI_MODEL_NAME in .env."
             ) from first_error
 

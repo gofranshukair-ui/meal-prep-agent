@@ -4,30 +4,27 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     gemini_api_key: str = Field(..., env="GEMINI_API_KEY")
-    gemini_model_name: str = Field("models/gemini-2.5-flash", env="GEMINI_MODEL_NAME")
+    gemini_model_name: str = Field("models/gemini-2.5-flash-lite", env="GEMINI_MODEL_NAME")
     gemini_fallback_model_names: list[str] = Field(
         default_factory=lambda: [
             "models/gemini-flash-lite-latest",
-            "models/gemini-2.5-flash-lite",
-            "models/gemini-2.5-pro",
+            "models/gemini-2.5-flash",
+            "models/gemini-2.0-flash-lite",
         ],
         env="GEMINI_FALLBACK_MODEL_NAMES",
     )
 
     @field_validator("gemini_model_name", mode="before")
+    @classmethod
     def normalize_gemini_model_name(cls, value: str) -> str:
         if not isinstance(value, str):
             return value
-        legacy_map = {
-            "gemini-2.5-flash-lite": "models/gemini-1.5-flash",
-            "gemini-1.5-flash": "models/gemini-1.5-flash",
-            "gemini-1.5-pro": "models/gemini-1.5-pro",
-            "gemini-2.0": "models/gemini-1.5-flash",
-        }
-        normalized = legacy_map.get(value, value)
-        if not normalized.startswith("models/") and normalized.startswith("gemini-"):
-            normalized = f"models/{normalized}"
-        return normalized
+        stripped = value.strip()
+        if stripped.startswith("models/"):
+            return stripped
+        if stripped.startswith("gemini-"):
+            return f"models/{stripped}"
+        return stripped
     gemini_max_output_tokens: int = Field(900, env="GEMINI_MAX_OUTPUT_TOKENS")
     gemini_temperature: float = Field(0.3, env="GEMINI_TEMPERATURE")
     gemini_cost_per_prompt_token: float = Field(0.000001, env="GEMINI_COST_PER_PROMPT_TOKEN")
