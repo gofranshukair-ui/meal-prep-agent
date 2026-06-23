@@ -11,12 +11,22 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen.canvas import Canvas
 
 from app.metrics import metrics
+from app.domain.models import BudgetValidation, NutritionValidation
 from app.schemas import (
+    BudgetValidationSchema,
+    DayPlanSchema,
     MealPlanRequestSchema,
     MealPlanResponseSchema,
+    MealSchema,
     MetricsDashboardSchema,
+    NutritionValidationSchema,
     RecipeMemorySchema,
+    ShoppingCategorySchema,
+    ShoppingItemSchema,
     ShoppingListPdfRequestSchema,
+    ValidationHighlightSchema,
+    ValidationIssueSchema,
+    SavingsTipSchema,
     WorkflowStateSchema,
 )
 from app.state import state_store
@@ -34,6 +44,58 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
+def _nutrition_to_schema(
+    nutrition: NutritionValidation | None,
+) -> NutritionValidationSchema | None:
+    if nutrition is None:
+        return None
+    return NutritionValidationSchema(
+        status=nutrition.status,
+        summary=nutrition.summary,
+        highlights=[
+            ValidationHighlightSchema(
+                label=highlight.label,
+                detail=highlight.detail,
+                status=highlight.status,
+            )
+            for highlight in nutrition.highlights
+        ],
+        issues=[
+            ValidationIssueSchema(
+                issue=issue.issue,
+                recommendation=issue.recommendation,
+            )
+            for issue in nutrition.issues
+        ],
+    )
+
+
+def _budget_to_schema(budget: BudgetValidation | None) -> BudgetValidationSchema | None:
+    if budget is None:
+        return None
+    return BudgetValidationSchema(
+        status=budget.status,
+        summary=budget.summary,
+        estimated_daily_cost=budget.estimated_daily_cost,
+        highlights=[
+            ValidationHighlightSchema(
+                label=highlight.label,
+                detail=highlight.detail,
+                status=highlight.status,
+            )
+            for highlight in budget.highlights
+        ],
+        savings_tips=[
+            SavingsTipSchema(
+                item=tip.item,
+                alternative=tip.alternative,
+                note=tip.note,
+            )
+            for tip in budget.savings_tips
+        ],
+    )
+
+
 @app.post("/meal-plan", response_model=MealPlanResponseSchema)
 def create_meal_plan(request: MealPlanRequestSchema) -> MealPlanResponseSchema:
     try:
@@ -45,6 +107,38 @@ def create_meal_plan(request: MealPlanRequestSchema) -> MealPlanResponseSchema:
             budget_validation=result.budget_summary,
             daily_plan=list(result.daily_plan),
             shopping_items=list(result.shopping_items),
+            structured_plan=[
+                DayPlanSchema(
+                    day=day.day,
+                    meals=[
+                        MealSchema(
+                            type=meal.meal_type,
+                            name=meal.name,
+                            calories=meal.calories,
+                            ingredients=list(meal.ingredients),
+                            notes=meal.notes,
+                        )
+                        for meal in day.meals
+                    ],
+                )
+                for day in result.structured_plan
+            ],
+            structured_shopping_list=[
+                ShoppingCategorySchema(
+                    category=category.category,
+                    items=[
+                        ShoppingItemSchema(
+                            name=item.name,
+                            quantity=item.quantity,
+                            notes=item.notes,
+                        )
+                        for item in category.items
+                    ],
+                )
+                for category in result.structured_shopping_list
+            ],
+            structured_nutrition=_nutrition_to_schema(result.structured_nutrition),
+            structured_budget=_budget_to_schema(result.structured_budget),
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))

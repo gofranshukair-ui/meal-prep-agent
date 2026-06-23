@@ -88,23 +88,30 @@ class GeminiAI(AIClient):
         prompt: str,
         max_output_tokens: int,
         temperature: float,
+        response_json_schema: dict[str, Any] | None = None,
     ) -> GenerateContentResponse:
+        config: dict[str, Any] = {
+            "max_output_tokens": max_output_tokens,
+            "temperature": temperature,
+        }
+        if response_json_schema is not None:
+            config["response_mime_type"] = "application/json"
+            config["response_json_schema"] = response_json_schema
+
         return self.client.models.generate_content(
             model=model_name,
             contents=prompt,
-            config={
-                "max_output_tokens": max_output_tokens,
-                "temperature": temperature,
-            },
+            config=config,
         )
 
-    def generate_text(
+    def _generate(
         self,
         prompt: str,
-        max_output_tokens: int = 900,
-        temperature: float = 0.3,
-        request_id: str | None = None,
-        operation_name: str | None = None,
+        max_output_tokens: int,
+        temperature: float,
+        request_id: str | None,
+        operation_name: str | None,
+        response_json_schema: dict[str, Any] | None = None,
     ) -> str:
         start_time = time.time()
         response = None
@@ -118,6 +125,7 @@ class GeminiAI(AIClient):
                     prompt=prompt,
                     max_output_tokens=max_output_tokens,
                     temperature=temperature,
+                    response_json_schema=response_json_schema,
                 )
                 self.model_name = candidate_model
                 break
@@ -164,3 +172,37 @@ class GeminiAI(AIClient):
             )
 
         return _extract_text(response)
+
+    def generate_text(
+        self,
+        prompt: str,
+        max_output_tokens: int = 900,
+        temperature: float = 0.3,
+        request_id: str | None = None,
+        operation_name: str | None = None,
+    ) -> str:
+        return self._generate(
+            prompt=prompt,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            request_id=request_id,
+            operation_name=operation_name,
+        )
+
+    def generate_json(
+        self,
+        prompt: str,
+        schema: dict[str, Any],
+        max_output_tokens: int = 900,
+        temperature: float = 0.3,
+        request_id: str | None = None,
+        operation_name: str | None = None,
+    ) -> str:
+        return self._generate(
+            prompt=prompt,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            request_id=request_id,
+            operation_name=operation_name,
+            response_json_schema=schema,
+        )

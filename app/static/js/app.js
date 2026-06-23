@@ -146,23 +146,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderResult(data, payload) {
-        mealDays = groupMealsByDay(data.daily_plan);
-        selectedDayIndex = 0;
-
-        if (mealDays.length === 0) {
-            mealPlanDisplay.innerHTML = '<p class="empty-state">No meal breakdown was returned.</p>';
+        if (!data.structured_plan?.length) {
+            mealDays = [];
+            mealPlanDisplay.innerHTML = '<p class="empty-state">No structured meal plan was returned. Please try again.</p>';
             dayPills.innerHTML = '';
         } else {
+            mealDays = mapStructuredPlan(data.structured_plan);
+            selectedDayIndex = 0;
             renderDayPills();
             renderSelectedDay();
         }
 
-        const shoppingLines = data.shopping_items.length
-            ? data.shopping_items
-            : data.raw_shopping_list.split('\n').map(line => line.trim()).filter(Boolean);
+        const shoppingLines = data.structured_shopping_list?.length
+            ? flattenStructuredShoppingList(data.structured_shopping_list)
+            : (data.shopping_items || []);
 
-        if (shoppingLines.length === 0) {
-            shoppingListDisplay.innerHTML = '<p class="empty-state">No shopping items were returned.</p>';
+        if (!data.structured_shopping_list?.length && !shoppingLines.length) {
+            shoppingListDisplay.innerHTML = '<p class="empty-state">No structured shopping list was returned. Please try again.</p>';
+        } else if (data.structured_shopping_list?.length) {
+            shoppingListDisplay.innerHTML = renderStructuredShoppingList(data.structured_shopping_list);
         } else {
             shoppingListDisplay.innerHTML = `<div class="shopping-list">${shoppingLines.map(item => `
                 <label class="shopping-item">
@@ -172,18 +174,12 @@ document.addEventListener('DOMContentLoaded', () => {
             `).join('')}</div>`;
         }
 
-        validationFeedback.innerHTML = `
-            <div class="notes-grid">
-                <div class="note-card">
-                    <h4>Nutrition</h4>
-                    <p>${escapeHtml(data.nutrition_validation)}</p>
-                </div>
-                <div class="note-card">
-                    <h4>Budget</h4>
-                    <p>${escapeHtml(data.budget_validation)}</p>
-                </div>
-            </div>
-        `;
+        validationFeedback.innerHTML = renderStructuredNotes(
+            data.structured_nutrition,
+            data.structured_budget,
+            data.nutrition_validation,
+            data.budget_validation,
+        );
 
         const totalMeals = mealDays.reduce((sum, day) => sum + day.meals.length, 0);
         mealsCount.textContent = String(totalMeals || data.daily_plan.length);
@@ -213,8 +209,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <article class="meal-row" style="--meal-color: ${meal.color}">
                         <span class="meal-dot" aria-hidden="true"></span>
                         <span class="meal-type-label">${escapeHtml(meal.label)}</span>
-                        <p class="meal-name">${escapeHtml(meal.name)}</p>
-                        ${meal.details ? `<p class="meal-details">${escapeHtml(meal.details)}</p>` : ''}
+                        <p class="meal-name">${escapeHtml(meal.name)}${meal.calories ? ` <span class="meal-calories">${meal.calories} cal</span>` : ''}</p>
+                        ${meal.ingredients?.length ? `<p class="meal-details">${escapeHtml(meal.ingredients.join(', '))}</p>` : ''}
+                        ${meal.notes ? `<p class="meal-details">${escapeHtml(meal.notes)}</p>` : ''}
                     </article>
                 `).join('')}
             </div>
@@ -222,59 +219,156 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function splitMealDescription(text) {
-    const parenMatch = text.match(/^(.+?)\s*\((.+)\)\s*$/);
-    if (parenMatch && parenMatch[1].length < 90) {
-        return { name: parenMatch[1].trim(), details: parenMatch[2].trim() };
-    }
-    const dashMatch = text.match(/^(.+?)\s*[—–-]\s*(.+)$/);
-    if (dashMatch && dashMatch[1].length < 90) {
-        return { name: dashMatch[1].trim(), details: dashMatch[2].trim() };
-    }
-    return { name: text, details: '' };
+function mapStructuredPlan(structuredPlan) {
+    return structuredPlan.map(day => ({
+        dayNum: String(day.day),
+        dayLabel: `Day ${day.day}`,
+        meals: day.meals.map(meal => {
+            const typeInfo = MEAL_TYPES.find(item => item.key === meal.type?.toLowerCase()) || {
+                key: meal.type || 'meal',
+                label: capitalize(meal.type || 'Meal'),
+                color: 'var(--sage)',
+            };
+            return {
+                ...typeInfo,
+                name: meal.name,
+                calories: meal.calories ?? null,
+                ingredients: meal.ingredients || [],
+                notes: meal.notes || '',
+            };
+        }),
+    }));
 }
 
-function parseMealLine(line) {
-    const trimmed = line.replace(/^[-*•]\s*/, '').trim();
-    for (const mealType of MEAL_TYPES) {
-        const pattern = new RegExp(`^(${mealType.key}|${mealType.label})\\s*[:\\-–—]\\s*(.+)$`, 'i');
-        const match = trimmed.match(pattern);
-        if (match) {
-            return { ...mealType, ...splitMealDescription(match[2].trim()) };
-        }
-    }
-    return {
-        label: 'Meal',
-        color: 'var(--sage)',
-        ...splitMealDescription(trimmed),
-    };
+function capitalize(value) {
+    if (!value) return '';
+    return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function groupMealsByDay(dailyPlan) {
-    const days = [];
-    let currentDay = null;
-    dailyPlan.forEach(line => {
-        const dayMatch = line.match(/^Day\s*(\d+)\s*[:\-–—]?\s*(.*)$/i);
-        if (dayMatch) {
-            if (currentDay) days.push(currentDay);
-            const remainder = dayMatch[2].trim();
-            currentDay = {
-                dayNum: dayMatch[1],
-                dayLabel: `Day ${dayMatch[1]}`,
-                meals: remainder ? [parseMealLine(remainder)] : [],
-            };
-        } else if (currentDay) {
-            currentDay.meals.push(parseMealLine(line));
-        } else {
-            currentDay = {
-                dayNum: String(days.length + 1),
-                dayLabel: `Day ${days.length + 1}`,
-                meals: [parseMealLine(line)],
-            };
-        }
-    });
-    if (currentDay) days.push(currentDay);
-    return days;
+function flattenStructuredShoppingList(structuredShoppingList) {
+    return structuredShoppingList.flatMap(category =>
+        category.items.map(item => {
+            let label = item.name;
+            if (item.quantity) label += ` (${item.quantity})`;
+            return label;
+        })
+    );
+}
+
+function renderStructuredShoppingList(structuredShoppingList) {
+    return structuredShoppingList.map(category => `
+        <section class="shopping-category">
+            <h4 class="shopping-category-title">${escapeHtml(category.category)}</h4>
+            <div class="shopping-list">
+                ${category.items.map(item => `
+                    <label class="shopping-item">
+                        <input type="checkbox" />
+                        <span>
+                            <strong>${escapeHtml(item.name)}</strong>
+                            ${item.quantity ? `<span class="shopping-quantity"> — ${escapeHtml(item.quantity)}</span>` : ''}
+                            ${item.notes ? `<span class="shopping-notes"> (${escapeHtml(item.notes)})</span>` : ''}
+                        </span>
+                    </label>
+                `).join('')}
+            </div>
+        </section>
+    `).join('');
+}
+
+function renderStructuredNotes(structuredNutrition, structuredBudget, nutritionText, budgetText) {
+    if (!structuredNutrition && !structuredBudget) {
+        return '<p class="empty-state">No structured notes were returned. Please try again.</p>';
+    }
+
+    return `<div class="notes-grid">
+        ${renderValidationCard('Nutrition', structuredNutrition, nutritionText, renderNutritionBody)}
+        ${renderValidationCard('Budget', structuredBudget, budgetText, renderBudgetBody)}
+    </div>`;
+}
+
+function renderValidationCard(title, structured, fallbackText, renderBody) {
+    if (!structured) {
+        return `<div class="note-card">
+            <h4>${escapeHtml(title)}</h4>
+            <p>${escapeHtml(fallbackText || 'No data available.')}</p>
+        </div>`;
+    }
+
+    return `<div class="note-card">
+        <div class="note-card-header">
+            <h4>${escapeHtml(title)}</h4>
+            <span class="note-status note-status-${escapeHtml(structured.status)}">${escapeHtml(formatStatus(structured.status))}</span>
+        </div>
+        ${renderBody(structured)}
+    </div>`;
+}
+
+function renderNutritionBody(nutrition) {
+    return `
+        <p class="note-summary">${escapeHtml(nutrition.summary)}</p>
+        ${nutrition.highlights?.length ? `
+            <ul class="note-highlights">
+                ${nutrition.highlights.map(h => `
+                    <li>
+                        <strong>${escapeHtml(h.label)}</strong>
+                        <span>${escapeHtml(h.detail)}</span>
+                        ${h.status ? `<span class="note-highlight-status">${escapeHtml(formatStatus(h.status))}</span>` : ''}
+                    </li>
+                `).join('')}
+            </ul>
+        ` : ''}
+        ${nutrition.issues?.length ? `
+            <div class="note-section">
+                <h5>Issues</h5>
+                <ul class="note-issues">
+                    ${nutrition.issues.map(issue => `
+                        <li>
+                            <strong>${escapeHtml(issue.issue)}</strong>
+                            ${issue.recommendation ? `<span>${escapeHtml(issue.recommendation)}</span>` : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        ` : ''}
+    `;
+}
+
+function renderBudgetBody(budget) {
+    return `
+        <p class="note-summary">${escapeHtml(budget.summary)}</p>
+        ${budget.estimated_daily_cost != null ? `
+            <p class="note-cost">Est. daily cost: <strong>$${budget.estimated_daily_cost.toFixed(2)}</strong></p>
+        ` : ''}
+        ${budget.highlights?.length ? `
+            <ul class="note-highlights">
+                ${budget.highlights.map(h => `
+                    <li>
+                        <strong>${escapeHtml(h.label)}</strong>
+                        <span>${escapeHtml(h.detail)}</span>
+                    </li>
+                `).join('')}
+            </ul>
+        ` : ''}
+        ${budget.savings_tips?.length ? `
+            <div class="note-section">
+                <h5>Savings tips</h5>
+                <ul class="note-issues">
+                    ${budget.savings_tips.map(tip => `
+                        <li>
+                            <strong>${escapeHtml(tip.item)}</strong>
+                            ${tip.alternative ? `<span>→ ${escapeHtml(tip.alternative)}</span>` : ''}
+                            ${tip.note ? `<span class="shopping-notes"> (${escapeHtml(tip.note)})</span>` : ''}
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+        ` : ''}
+    `;
+}
+
+function formatStatus(status) {
+    if (!status) return '';
+    return status.replace(/_/g, ' ');
 }
 
 function escapeHtml(text) {

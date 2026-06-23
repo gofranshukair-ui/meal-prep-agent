@@ -13,6 +13,62 @@ class MealPlanRequestSchema(BaseModel):
     avoid_ingredients: List[str] = Field(default_factory=list, description="Ingredients to avoid")
 
 
+class MealSchema(BaseModel):
+    type: str
+    name: str
+    calories: Optional[int] = None
+    ingredients: List[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+class DayPlanSchema(BaseModel):
+    day: int
+    meals: List[MealSchema]
+
+
+class ShoppingItemSchema(BaseModel):
+    name: str
+    quantity: str = ""
+    notes: str = ""
+
+
+class ShoppingCategorySchema(BaseModel):
+    category: str
+    items: List[ShoppingItemSchema]
+
+
+class ValidationHighlightSchema(BaseModel):
+    label: str
+    detail: str
+    status: str = ""
+
+
+class ValidationIssueSchema(BaseModel):
+    issue: str
+    recommendation: str = ""
+
+
+class SavingsTipSchema(BaseModel):
+    item: str
+    alternative: str = ""
+    note: str = ""
+
+
+class NutritionValidationSchema(BaseModel):
+    status: str
+    summary: str
+    highlights: List[ValidationHighlightSchema] = Field(default_factory=list)
+    issues: List[ValidationIssueSchema] = Field(default_factory=list)
+
+
+class BudgetValidationSchema(BaseModel):
+    status: str
+    summary: str
+    estimated_daily_cost: Optional[float] = None
+    highlights: List[ValidationHighlightSchema] = Field(default_factory=list)
+    savings_tips: List[SavingsTipSchema] = Field(default_factory=list)
+
+
 class MealPlanResponseSchema(BaseModel):
     raw_meal_plan: str
     raw_shopping_list: str
@@ -20,6 +76,10 @@ class MealPlanResponseSchema(BaseModel):
     budget_validation: str
     daily_plan: List[str]
     shopping_items: List[str]
+    structured_plan: List[DayPlanSchema] = Field(default_factory=list)
+    structured_shopping_list: List[ShoppingCategorySchema] = Field(default_factory=list)
+    structured_nutrition: Optional[NutritionValidationSchema] = None
+    structured_budget: Optional[BudgetValidationSchema] = None
 
     model_config = {
         "json_schema_extra": {
@@ -30,6 +90,20 @@ class MealPlanResponseSchema(BaseModel):
                 "budget_validation": "The meal plan is within the target budget.",
                 "daily_plan": ["Day 1: ...", "Day 2: ..."],
                 "shopping_items": ["Chicken", "Tomatoes"],
+                "structured_plan": [
+                    {
+                        "day": 1,
+                        "meals": [
+                            {
+                                "type": "breakfast",
+                                "name": "Oatmeal with berries",
+                                "calories": 320,
+                                "ingredients": ["oats", "blueberries"],
+                                "notes": "",
+                            }
+                        ],
+                    }
+                ],
             }
         }
     }

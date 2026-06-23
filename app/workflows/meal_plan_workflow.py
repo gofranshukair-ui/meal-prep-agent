@@ -8,7 +8,13 @@ from langgraph.func import entrypoint, task
 from app.adapters.gemini_adapter import GeminiAI
 from app.config import settings
 from app.context import build_compressed_context, compress_text
-from app.domain.models import DietaryPreferences
+from app.domain.models import (
+    BUDGET_VALIDATION_JSON_SCHEMA,
+    DietaryPreferences,
+    MEAL_PLAN_JSON_SCHEMA,
+    NUTRITION_VALIDATION_JSON_SCHEMA,
+    SHOPPING_LIST_JSON_SCHEMA,
+)
 from app.metrics import metrics
 from app.state import state_store
 
@@ -57,9 +63,11 @@ def _build_recipe_summary(meal_plan: str, preferences: DietaryPreferences) -> st
 
 def _build_nutrition_validation_prompt(meal_plan: str, preferences: DietaryPreferences) -> str:
     prompt_lines = [
-        "Review the following five-day meal plan and provide a clear nutrition validation summary.",
-        "Confirm whether the plan meets the dietary restrictions, calorie target, and balanced macronutrients.",
-        "List any potential nutritional issues and offer concise recommendations.",
+        "Review the following five-day meal plan and provide a nutrition validation report.",
+        "Confirm whether the plan meets dietary restrictions, calorie targets, and balanced macronutrients.",
+        "Return JSON matching the required schema.",
+        "Use status values: good, warning, or concern.",
+        "Include highlights for key nutrition areas and issues with recommendations when needed.",
         "",
         "Meal Plan:\n",
         meal_plan,
@@ -80,7 +88,9 @@ def _build_budget_validation_prompt(meal_plan: str, preferences: DietaryPreferen
     prompt_lines = [
         "Review the following five-day meal plan and estimate its budget compatibility.",
         "If a budget target is provided, state whether the plan is likely within that budget.",
-        "Identify any expensive ingredients and suggest lower-cost alternatives that preserve the nutrition goals.",
+        "Return JSON matching the required schema.",
+        "Use status values: within, over, or unknown.",
+        "Include highlights, estimated daily cost when possible, and savings tips for expensive items.",
         "",
         "Meal Plan:\n",
         meal_plan,
@@ -96,8 +106,9 @@ def _build_budget_validation_prompt(meal_plan: str, preferences: DietaryPreferen
 def _build_shopping_optimization_prompt(meal_plan: str, preferences: DietaryPreferences) -> str:
     prompt_lines = [
         "Generate an optimized shopping list for the five-day meal plan below.",
-        "Group items by category and avoid duplicates.",
+        "Group items by category (Produce, Protein, Dairy, Pantry, etc.) and avoid duplicates.",
         "Prefer budget-friendly substitutions and pantry-friendly ingredients when possible.",
+        "Return a JSON shopping list matching the required schema.",
         "",
         "Meal Plan:\n",
         meal_plan,
@@ -116,9 +127,10 @@ def _build_shopping_optimization_prompt(meal_plan: str, preferences: DietaryPref
 
 @task
 def meal_planning_agent(prompt: str, request_id: str | None = None) -> str:
-    return _ai_client.generate_text(
+    return _ai_client.generate_json(
         prompt,
-        max_output_tokens=settings.gemini_max_output_tokens,
+        schema=MEAL_PLAN_JSON_SCHEMA,
+        max_output_tokens=max(settings.gemini_max_output_tokens, 2500),
         temperature=settings.gemini_temperature,
         request_id=request_id,
         operation_name="meal_planning",
@@ -138,9 +150,10 @@ def recipe_memory_agent(previous_recipes: str, preferences: DietaryPreferences, 
 
 @task
 def nutrition_validation_agent(meal_plan: str, preferences: DietaryPreferences, request_id: str | None = None) -> str:
-    return _ai_client.generate_text(
+    return _ai_client.generate_json(
         _build_nutrition_validation_prompt(meal_plan, preferences),
-        max_output_tokens=300,
+        schema=NUTRITION_VALIDATION_JSON_SCHEMA,
+        max_output_tokens=600,
         temperature=0.2,
         request_id=request_id,
         operation_name="nutrition_validation",
@@ -149,9 +162,10 @@ def nutrition_validation_agent(meal_plan: str, preferences: DietaryPreferences, 
 
 @task
 def budget_validation_agent(meal_plan: str, preferences: DietaryPreferences, request_id: str | None = None) -> str:
-    return _ai_client.generate_text(
+    return _ai_client.generate_json(
         _build_budget_validation_prompt(meal_plan, preferences),
-        max_output_tokens=300,
+        schema=BUDGET_VALIDATION_JSON_SCHEMA,
+        max_output_tokens=600,
         temperature=0.2,
         request_id=request_id,
         operation_name="budget_validation",
@@ -160,9 +174,10 @@ def budget_validation_agent(meal_plan: str, preferences: DietaryPreferences, req
 
 @task
 def shopping_optimization_agent(meal_plan: str, preferences: DietaryPreferences, request_id: str | None = None) -> str:
-    return _ai_client.generate_text(
+    return _ai_client.generate_json(
         _build_shopping_optimization_prompt(meal_plan, preferences),
-        max_output_tokens=settings.gemini_max_output_tokens,
+        schema=SHOPPING_LIST_JSON_SCHEMA,
+        max_output_tokens=max(settings.gemini_max_output_tokens, 1500),
         temperature=settings.gemini_temperature,
         request_id=request_id,
         operation_name="shopping_optimization",

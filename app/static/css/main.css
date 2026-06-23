@@ -388,6 +388,12 @@ body {
     line-height: 1.35;
 }
 
+.meal-calories {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--sage);
+}
+
 .meal-details {
     margin: 4px 0 0;
     font-size: 0.875rem;
@@ -437,6 +443,33 @@ body {
     color: var(--text-muted);
 }
 
+.shopping-category {
+    margin-bottom: var(--space-md);
+}
+
+.shopping-category:last-child {
+    margin-bottom: 0;
+}
+
+.shopping-category-title {
+    margin: 0 0 var(--space-xs);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--sage);
+}
+
+.shopping-quantity {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.shopping-notes {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
 /* Notes tab */
 .notes-grid {
     display: grid;
@@ -458,12 +491,98 @@ body {
 }
 
 .note-card h4 {
-    margin: 0 0 var(--space-xs);
+    margin: 0;
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--sage);
+}
+
+.note-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-xs);
+}
+
+.note-status {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-muted);
+}
+
+.note-status-good,
+.note-status-within {
+    background: #e8f3ea;
+    color: #2d6a3e;
+}
+
+.note-status-warning,
+.note-status-over {
+    background: #fdf0e0;
+    color: #9a5b00;
+}
+
+.note-status-concern {
+    background: #fde8e8;
+    color: #9b2c2c;
+}
+
+.note-summary {
+    margin: 0 0 var(--space-sm);
+    font-size: 0.9375rem;
+    color: var(--text);
+    line-height: 1.55;
+}
+
+.note-cost {
+    margin: 0 0 var(--space-sm);
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.note-highlights,
+.note-issues {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.875rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.note-highlights li,
+.note-issues li {
+    margin-bottom: 0.35rem;
+}
+
+.note-highlights strong,
+.note-issues strong {
+    display: block;
+    font-weight: 600;
+}
+
+.note-highlight-status {
+    display: inline-block;
+    margin-left: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: capitalize;
+}
+
+.note-section h5 {
+    margin: var(--space-sm) 0 var(--space-xs);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
 }
 
 .note-card p {
