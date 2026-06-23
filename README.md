@@ -68,7 +68,7 @@ git push -u origin main
 **Notes:**
 - The free tier spins down after ~15 minutes of inactivity; the first request after idle may take 30–60 seconds.
 - Never commit `.env`. Use Render Environment variables for secrets.
-- SQLite data is stored on a persistent disk at `/var/data/workflow_state.db`.
+- On the free tier, SQLite data is ephemeral (recipe memory resets on redeploy). Upgrade to a paid plan and add a persistent disk if you need durable storage.
 
 ## API
 
