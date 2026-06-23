@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meal Prep Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/main.css" />
+</head>
+<body>
+    <div class="page">
+        <header class="header">
+            <div class="header-text">
+                <h1>Meal Prep Planner</h1>
+                <p class="lead">Generate a five-day meal plan tailored to your diet, then grab your shopping list.</p>
+            </div>
+            <a href="/metrics/html" class="metrics-link">Metrics</a>
+        </header>
+
+        <section class="card">
+            <h2 class="card-title">Your preferences</h2>
+            <form id="mealPlanForm">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="meals_per_day">Meals per day</label>
+                        <input type="number" id="meals_per_day" min="1" max="6" value="3" required />
+                    </div>
+                    <div class="field">
+                        <label for="calories_per_day">Calories per day</label>
+                        <input type="number" id="calories_per_day" placeholder="e.g. 1800" />
+                    </div>
+                    <div class="field">
+                        <label for="budget_per_day">Budget per day ($)</label>
+                        <input type="number" id="budget_per_day" step="0.01" placeholder="e.g. 40" />
+                    </div>
+                    <div class="field">
+                        <label for="dietary_restrictions">Dietary restrictions</label>
+                        <input type="text" id="dietary_restrictions" placeholder="vegetarian, gluten-free" />
+                    </div>
+                    <div class="field">
+                        <label for="cuisines">Cuisines</label>
+                        <input type="text" id="cuisines" placeholder="Mediterranean, Asian" />
+                    </div>
+                    <div class="field">
+                        <label for="avoid_ingredients">Avoid ingredients</label>
+                        <input type="text" id="avoid_ingredients" placeholder="peanuts, shellfish" />
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button type="submit" class="btn btn-primary" id="generateBtn">Generate meal plan</button>
+                    <button type="button" class="btn btn-secondary" id="downloadPdfBtn" disabled>Download shopping list PDF</button>
+                </div>
+            </form>
+            <p class="feedback" id="formFeedback">Fill in your preferences and generate a plan.</p>
+        </section>
+
+        <section class="results" id="resultsSection">
+            <div class="stats-strip">
+                <div class="stat">
+                    <span class="stat-label">Meals</span>
+                    <span class="stat-value" id="mealsCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Ingredients</span>
+                    <span class="stat-value" id="ingredientsCount">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Budget</span>
+                    <span class="stat-value" id="budgetInfo">—</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <nav class="tab-bar" role="tablist">
+                    <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-tab="plan">Plan</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="shopping">Shopping</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" data-tab="notes">Notes</button>
+                </nav>
+
+                <div class="tab-panel active" id="tab-plan" role="tabpanel">
+                    <div id="dayPills" class="day-pills"></div>
+                    <div id="mealPlanDisplay">
+                        <p class="empty-state">Your meal plan will appear here.</p>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="tab-shopping" role="tabpanel">
+                    <div id="shoppingListDisplay">
+                        <p class="empty-state">Your shopping list will appear here.</p>
+                    </div>
+                </div>
+
+                <div class="tab-panel" id="tab-notes" role="tabpanel">
+                    <div id="validationFeedback">
+                        <p class="empty-state">Nutrition and budget notes will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
